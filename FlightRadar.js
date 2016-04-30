@@ -5,11 +5,11 @@
 // map is 353 km high 353230 /
 
 
-function knotsToMetersPerSecond(knots) {
+knotsToMetersPerSecond = function(knots) {
     return knots * 0.514444;
 }
 
-function feetToMeters(ft) {
+feetToMeters = function(ft) {
     return ft * 0.3048;
 }
 
@@ -71,35 +71,7 @@ VERTICAL_SPEED = 15
 
 FlightRadar = {};
 
-FlightRadar.latLongAltToVec3 = function(lat, lon, alt) {
-    var offsetLat = lat - 46.5;
-    var offsetLon = lon - 121;
-
-    // Convert to kilometers
-    var x = (offsetLon / 3) * 230 * KM_SCALE;
-    var z = (offsetLat / 2) * 210 * KM_SCALE;
-
-    // Convert to scaled meters
-    x *= ;
-    z *= KM_SCALE;
-    x -= 11.5;
-    z -= 10.5;
-    var y = feetToMeters(alt) / 5000;
-    return { x: x, y: y, z: z };
-}
-
-FlightRadar.trailToPosition = function(t) {
-    return FlightRadar.latLongAltToVec3(t.lat, Math.abs(t.lng), t.alt);
-}
-
-
-FlightRadar.flightToPosition = function(flightData) {
-    var alt = flightData[ALTITUDE];
-    var lat = flightData[LATITUDE];
-    var lon = Math.abs(flightData[LONGITUDE]);
-    return FlightRadar.latLongAltToVec3(lat, lon, alt);
-}
-
+FlightRadar.VERTICAL_SCALE = 1 / 5000
 FlightRadar.flightToRotation = function(flightData) {
     var bearing = flightData[HEADING];
     var pitch = 0; //45 * flightData[VERTICAL_SPEED] / 2000; 
@@ -107,17 +79,8 @@ FlightRadar.flightToRotation = function(flightData) {
 }
 
 
-FlightRadar.flightToVelocity = function(flightData) {
-    var orientation = FlightRadar.flightToRotation(flightData);
-    var speed = knotsToMetersPerSecond(flightData[SPEED]);
-    var result = Vec3.multiplyQbyV(orientation, {x: 0, y: 0, z:  speed });
-    result = Vec3.multiply(result, 1 / 10000);
-    result.y = (feetToMeters(flightData[VERTICAL_SPEED]) / 5000) / 60;
-    return result;
-}
-
 FlightRadar.requestFlightsData = function(callback) {
-    var url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=49,46,-125,-120&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
+    var url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=49.45,45.45,-124.3,-120.3&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
     queryUrl(url, callback);
 }
 
