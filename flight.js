@@ -2,7 +2,8 @@
 
 Script.include("./Austin.js");
 Script.include("./FlightRadar.js");
-Script.include("./GoogleMaps.js")
+Script.include("./GoogleMaps.js");
+Script.include("./Geo.js");
 
 function feetToMeters(ft) {
     return ft * 0.3048;
@@ -28,6 +29,7 @@ vec3toStr = function(v, digits) {
 var SEA = { x: -122.3, y: 0, z: 47.45 };
 var LAX = { x: -118.4139235, y: 0, z: 33.9411931 };
 var EQU = { x: -78.4560849, y: 0, z: 0.0005385 };
+var GRW = { x: 0, y: 0, z: 0 };
 
 var LOCATION = SEA;
 
@@ -44,6 +46,11 @@ var IGNORED_KEYS = ['version', 'stats', 'selected-aircraft', 'full_count' ];
 AUSTIN.Radar = function() {
     this.flights = {};
     this.ENTITY_NAME = "plane";
+    this.center = GEO.LLA2ECEF(Math.radians(LOCATION.z), Math.radians(LOCATION.x), 0);
+    var normal = Vec3.normalize(this.center);
+    this.rotation = Quat.rotationBetween(normal, { x: 0, y: 0, z: 1 });
+    this.rotatedCenter = Vec3.multiplyQbyV(this.rotation, this.center);
+    console.log("Rot Center " + vec3toStr(this.rotatedCenter));
     return this;
 }
 
@@ -60,7 +67,6 @@ AUSTIN.Radar.prototype = {
     }, 
 
     addFlight: function(flightId, flight) {
-        console.log("Adding flight " + flightId);
         var newFlight = {
             id: flightId, 
             raw: flight,
@@ -68,16 +74,15 @@ AUSTIN.Radar.prototype = {
         };
         this.flights[flightId] = newFlight;
         var newFlightPos = this.flightToPosition(flight);
-        console.log("New flight pos " + vec3toStr(newFlightPos))
         newFlight.entity = Entities.addEntity({
             type: "Model",
             name: this.ENTITY_NAME,
             modelURL: "https://s3.amazonaws.com/DreamingContent/assets/simple/SimpleAirport/Models/jet05.fbx",
             position: this.flightToPosition(flight),
-            rotation: this.flightToRotation(flight),
-            velocity: this.flightToVelocity(flight),
+//            rotation: this.flightToRotation(flight),
+//            velocity: this.flightToVelocity(flight),
             visible: true,
-            lifetime: 3600,
+            lifetime: 600,
             damping: 0,
             userData: JSON.stringify({
                 flight: {
@@ -86,12 +91,10 @@ AUSTIN.Radar.prototype = {
                 }
             }),
         });
-        console.log("FLIGHT Added");
     },
     
     updateFlight: function(flightId, flight) {
         if (!(flightId in this.flights)) {
-            console.log("Adding flight");
             this.addFlight(flightId, flight);
             return;
         }
@@ -101,14 +104,14 @@ AUSTIN.Radar.prototype = {
             updateFlight.raw = flight;
             Entities.editEntity(updateFlight.entity, {
                 position: this.flightToPosition(flight),
-                rotation: this.flightToRotation(flight),
-                velocity: this.flightToVelocity(flight),
+//                rotation: this.flightToRotation(flight),
+//                velocity: this.flightToVelocity(flight),
+            	lifetime: 600,
             });
         }
     },
     
     remove: function(flightId) {
-        console.log("Requested removal of " + flightId);
         if (!(flightId in this.flights)) {
             return;
         }
@@ -158,7 +161,7 @@ AUSTIN.Radar.prototype = {
     
     updateRaw: function() {
         var that = this;
-        FlightRadar.requestFlightsData(function(results){
+        FlightRadar.requestFlightsData(LOCATION.z, LOCATION.x, 0.5, 0.5, function(results){
             IGNORED_KEYS.forEach(function(key){ delete results[key]; }, this);
             that.update(results);
         });
@@ -166,22 +169,21 @@ AUSTIN.Radar.prototype = {
     
 
     latLongAltToVec3: function(lat, lon, alt) {
-        var offsetLat = lat - 46.5;
-        var offsetLon = lon - 121;
-
-        // Convert to kilometers
-        var x = (offsetLon / 3) * 230 * KM_SCALE;
-        var z = (offsetLat / 2) * 210 * KM_SCALE;
-
-        // Convert to scaled meters
-        x -= 11.5;
-        z -= 10.5;
-        var y = feetToMeters(alt) / 5000;
-        return { x: x, y: y, z: z };
+        alt = feetToMeters(alt);
+        lat = Math.radians(lat);
+        lon = Math.radians(lon);
+        var result = GEO.LLA2ECEF(lat, lon, alt);
+        result = Vec3.multiplyQbyV(this.rotation, result);
+        result = Vec3.subtract(result, this.rotatedCenter);
+        var z = result.z;
+        result.z = result.y;
+        result.y = z;
+        result = Vec3.multiply(result, 1 / 10000);
+        return result;
     },
 
     trailToPosition: function(t) {
-        return latLongAltToVec3(t.lat, Math.abs(t.lng), t.alt);
+        return this.latLongAltToVec3(t.lat, t.lng, t.alt);
     },
 
 
@@ -189,9 +191,8 @@ AUSTIN.Radar.prototype = {
         var alt = flightData[ALTITUDE];
         var lat = flightData[LATITUDE];
         var lon = flightData[LONGITUDE];
-        var result = map.latLongToPosition({ x: lon, y: 0, z: lat });
-        result.y = feetToMeters(alt) / 5000;
-        console.log("CCC " + alt + " " + vec3toStr(result))
+        var result = this.latLongAltToVec3(lat, lon, alt);
+        //console.log("Lat " + lat + " lon " + lon + " -> " + vec3toStr(result));
         return result;
     },
     
@@ -211,6 +212,7 @@ AUSTIN.Radar.prototype = {
 
 var radar = new AUSTIN.Radar();
 radar.wipe();
+radar.updateRaw();
 AUSTIN.updateEvery(1, function(){
     radar.updateRaw();
 })

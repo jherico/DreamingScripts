@@ -79,8 +79,14 @@ FlightRadar.flightToRotation = function(flightData) {
 }
 
 
-FlightRadar.requestFlightsData = function(callback) {
-    var url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=49.45,45.45,-124.3,-120.3&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
+FlightRadar.requestFlightsData = function(lat, lon, latRange, lonRange, callback) {
+    var minLat = lat - latRange
+    var maxLat = lat + latRange
+    var minLon = lon - lonRange
+    var maxLon = lon + lonRange
+    var url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=" + maxLat + "," + minLat + "," + minLon + "," + maxLon + "&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
+    //url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=49.45,45.45,-124.3,-120.3&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
+    print("URL " + url)
     queryUrl(url, callback);
 }
 
