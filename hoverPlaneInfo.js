@@ -2,6 +2,23 @@
 
 Script.include("./Austin.js");
 Script.include("./FlightRadar.js");
+Script.include("./Geo.js");
+
+function feetToMeters(ft) {
+    return ft * 0.3048;
+}
+
+console = {
+  log: function(str) {
+      print("FLIGHT " + str);
+  },
+  warn: function(str) {
+      print("FLIGHT " + str);
+  },
+  debug: function(str) {
+      print("FLIGHT " + str);
+  },
+};
 
 var orientation = MyAvatar.orientation;
 orientation = Quat.safeEulerAngles(orientation);
@@ -92,6 +109,20 @@ function castRay() {
     }
 }
 
+
+
+var SEA = { x: -122.3088, y: 0, z: 47.4502 };
+var LAX = { x: -118.4139235, y: 0, z: 33.9411931 };
+var EQU = { x: -78.4560849, y: 0, z: 0.0005385 };
+var GRW = { x: 0, y: 0, z: 0 };
+var LOCATION = SEA;
+GEO_MAPPER = new GEO.Mapper({
+    //lat: LOCATION.z,
+    //lon: LOCATION.x,
+    scale: 1 / 200000,   
+});
+
+
 var OVERLAYS = [];
 
 function parseTrackResults(results) {
@@ -103,24 +134,18 @@ function parseTrackResults(results) {
         console.log("Trail found ");
         var lastPos = intersectionPos;
         for (var i = 0; i < results.trail.length; ++i) {
-            var newPos = FlightRadar.trailToPosition(results.trail[i]);
-//            console.log(newPos.x + " , " + newPos.y + " , " + newPos.z);
-//            var overlay = new AUSTIN.Overlay("sphere", {
-//                solid: true, visible: true,
-//                position: newPos,
-//                dimensions: { 0.1, 0.1, 0.1 },
-//                color: AUSTIN.Colors.OffWhite,
-//            });
-//            OVERLAYS.push(overlay);
-//            console.log("Segment " + i);
-            OVERLAYS.push(new AUSTIN.Overlay("line3d", {
-                start: lastPos,
-                end: newPos,
-                color: AUSTIN.Colors.TronBlue,
-                visible: true,
-                alpha: 1,
-                lineWidth: 5,
-            }));
+            var t = results.trail[i];
+            var newPos = GEO_MAPPER.positionToVec3(t.lat, t.lng, feetToMeters(t.alt));
+            if (i !== 0) {
+                OVERLAYS.push(new AUSTIN.Overlay("line3d", {
+                    start: lastPos,
+                    end: newPos,
+                    color: { red: 200, green: 10, blue: 0 },
+                    visible: true,
+                    alpha: 1,
+                    lineWidth: 5,
+                }));
+            }
             lastPos = newPos;
         }
     }
@@ -149,7 +174,7 @@ function showPlaneInfo(position, userData) {
     var flight = userData.flight;
     var flightData = flight.data;
     var flightId = flight.id;
-    var flightNum = flightData[SHORT_FLIGHT_NUMBER];
+    var flightNum = flightData[LONG_FLIGHT_NUMBER];
     if (flightNum.length === 0) {
         flightNum = "Classified";
     }
@@ -164,9 +189,6 @@ function showPlaneInfo(position, userData) {
     });
     updateTrack(flight);
 }
-
-
-
 
 
 function overlayLineOn(closePoint, farPoint) {
