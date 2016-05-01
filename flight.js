@@ -37,13 +37,17 @@ var EARTH_ENTITY;
 var EARTH_RADIUS = 6.371e6
 var SCALE = 1 / 200000;
 var SCALED_RADIUS = EARTH_RADIUS * SCALE;
+var SCALED_DIAMETER = SCALED_RADIUS * 1.98;
 console.log("Scaled radius " + SCALED_RADIUS);
 var EARTH_PROPERTIES = {
     "type": "Sphere",
-    "dimensions": { "x": SCALED_RADIUS, "y": SCALED_RADIUS, "z": SCALED_RADIUS },
-    "userData": "{\n    \"ProceduralEntity\": {\n        \"version\": 2,\n        \"shaderUrl\": \"https://s3.amazonaws.com/DreamingContent/shaders/sphereMap.fs\",\n        \"channels\": [ \"https://s3.amazonaws.com/DreamingContent/assets/images/2_no_clouds_16k.jpg\" ]  \n    }\n}"
+    "dimensions": { "x": SCALED_DIAMETER, "y": SCALED_DIAMETER, "z": SCALED_DIAMETER },
+    "userData": "{\n    \"ProceduralEntity\": {\n        \"version\": 2,\n        \"shaderUrl\": \"https://s3.amazonaws.com/DreamingContent/shaders/sphereMap.fs\",\n        \"channels\": [ \"https://s3.amazonaws.com/DreamingContent/assets/images/earthmap1k.jpg\" ]  \n    }\n}"
+//    "userData": "{\n    \"ProceduralEntity\": {\n        \"version\": 2,\n        \"shaderUrl\": \"https://s3.amazonaws.com/DreamingContent/shaders/sphereMap.fs\",\n        \"channels\": [ \"https://s3.amazonaws.com/DreamingContent/assets/images/2_no_clouds_16k.jpg\" ]  \n    }\n}"
 };
 
+//https://s3.amazonaws.com/DreamingContent/assets/images/2_no_clouds_16k.jpg
+//https://s3.amazonaws.com/DreamingContent/assets/images/earthmap1k.jpg
 
 var IGNORED_KEYS = ['version', 'stats', 'selected-aircraft', 'full_count' ];
 
@@ -57,11 +61,13 @@ AUSTIN.Radar = function() {
         lon: LOCATION.x,
         scale: SCALE,
     });
-    
+
+    this.wipe();
     EARTH_ENTITY = Entities.addEntity(EARTH_PROPERTIES);
     Entities.editEntity(EARTH_ENTITY, {
-        position: Vec3.multiply(this.geoMapper.rotatedCenter, -1 * this.geoMapper.scale),
+        position: this.geoMapper.rotatedCenter,
         rotation: this.geoMapper.rotation,
+        name: this.ENTITY_NAME,
     });
     return this;
 }
@@ -80,7 +86,8 @@ AUSTIN.Radar.prototype = {
     
     getFlightEntityProperties: function(flightId, flight, isNewFlight) {
         var pos = this.flightToPosition(flight);
-        var rot = this.flightToRotation(pos, flight);
+//        var rot = this.flightToRotation(pos, flight);
+        console.log("Position " + vec3toStr(pos));
         if (isNewFlight) {
             return {
                 type: "Model",
@@ -97,14 +104,14 @@ AUSTIN.Radar.prototype = {
                 }),
                 parentID: EARTH_ENTITY,
                 localPosition: pos,
-                rotation: rot,
+                //rotation: rot,
                 //velocity: this.flightToVelocity(flight),
             };
         } else {
             return {
             	lifetime: 600,
                 localPosition: pos,
-                rotation: rot,
+                //rotation: rot,
                 //velocity: this.flightToVelocity(flight),
             };
         }
@@ -218,9 +225,8 @@ AUSTIN.Radar.prototype = {
 };
 
 var radar = new AUSTIN.Radar();
-radar.wipe();
 radar.updateRaw();
-AUSTIN.updateEvery(30, function(){
-    radar.updateRaw();
-})
+//AUSTIN.updateEvery(30, function(){
+//    radar.updateRaw();
+//})
 
