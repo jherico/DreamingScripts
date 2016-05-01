@@ -36,6 +36,7 @@ FLIGHT_NUMBER = 0
 LATITUDE = 1
 LONGITUDE = 2
 HEADING = 3
+BEARING = HEADING
 ALTITUDE = 4
 SPEED = 5
 UNKNOWN_1 = 6
@@ -48,6 +49,7 @@ DEST = 12
 SHORT_FLIGHT_NUMBER = 13
 UNKNOWN_2 = 14
 VERTICAL_SPEED = 15
+LONG_FLIGHT_NUMBER = 16
 
 
 //[04/24 11:04:25] [DEBUG]     "A735D7",
@@ -75,7 +77,7 @@ FlightRadar.VERTICAL_SCALE = 1 / 5000
 FlightRadar.flightToRotation = function(flightData) {
     var bearing = flightData[HEADING];
     var pitch = 0; //45 * flightData[VERTICAL_SPEED] / 2000; 
-    return Quat.fromPitchYawRollDegrees(-pitch, bearing * -1, 0);
+    return Quat.fromPitchYawRollDegrees(-pitch, bearing, 0);
 }
 
 

@@ -49,6 +49,10 @@ Google.Map.ENTITY_NAME = "GoogleMapInstance";
 Google.Map.prototype = {
     constructor: Google.Map,
     
+    destroy: function() {
+        this.wipe();
+    },
+    
     wipe: function() {
         var that = this;
         Entities.findEntities({ x: 0, y: 0, z: 0 }, 50).forEach(function(id) {
