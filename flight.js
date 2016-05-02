@@ -6,9 +6,6 @@ Script.include("./Geo.js");
 Script.include("./FlightConstants.js")
 Script.include("./GoogleMaps.js");
 
-//https://s3.amazonaws.com/DreamingContent/assets/images/2_no_clouds_16k.jpg
-//https://s3.amazonaws.com/DreamingContent/assets/images/earthmap1k.jpg
-
 
 AUSTIN.Radar = function() {
     this.flights = {};
@@ -20,14 +17,23 @@ AUSTIN.Radar = function() {
         lon: LOCATION.x,
         scale: SCALE,
     });
+    this.map = new Google.Map({
+        center: LOCATION,
+        lat: LOCATION.z,
+        lon: LOCATION.x,
+        range: RANGE,
+        geoMapper: this.geoMapper,
+    });
+    this.map.wipe();
+    this.map.buildMap();
 
     this.wipe(true);
-    this.earth = Entities.addEntity(EARTH_PROPERTIES);
-    Entities.editEntity(this.earth, {
-        position: this.geoMapper.rotatedCenter,
-        rotation: this.geoMapper.rotation,
-        name: EARTH_ENTITY_NAME,
-    });
+    //this.earth = Entities.addEntity(EARTH_PROPERTIES);
+    //Entities.editEntity(this.earth, {
+    //    position: this.geoMapper.rotatedCenter,
+    //    rotation: this.geoMapper.rotation,
+    //    name: EARTH_ENTITY_NAME,
+    //});
     return this;
 }
 
@@ -49,8 +55,25 @@ AUSTIN.Radar.prototype = {
     },
     
     getFlightEntityProperties: function(flightId, flight, isNewFlight) {
-        var pos = this.flightToPosition(flight);
-        var rot = this.flightToRotation(flight);
+        var alt = flight[ALTITUDE];
+        var lat = flight[LATITUDE];
+        var lon = flight[LONGITUDE];
+        var speed = flight[SPEED] * this.geoMapper.scale;
+        var vertical_speed = flight[VERTICAL_SPEED] *  this.geoMapper.scale;
+        var bearing = flight[HEADING];
+        var updated = flight[UPDATED];
+
+        var now = (new Date().getTime() / 1000) + this.epochOffset;
+        // age in seconds
+        var age = now - updated;
+        var rot = this.geoMapper.bearingToRelativeQuat(lat, lon, bearing + 180);
+        var vel = Vec3.multiplyQbyV(rot, {x: 0, y: vertical_speed, z: speed });
+        var posOffset = Vec3.multiply(vel, age);
+        //console.log("Speed " + AUSTIN.vec3toStr(vel) + " offset " + this.epochOffset + " age " + age + " position offset " + AUSTIN.vec3toStr(posOffset));
+        var pos = this.geoMapper.positionToRelativeVec3(lat, lon, alt);
+        pos = Vec3.sum(pos, posOffset);
+        
+
         if (isNewFlight) {
             return {
                 type: "Model",
@@ -66,17 +89,17 @@ AUSTIN.Radar.prototype = {
                         data: flight,
                     }
                 }),
-                parentID: this.earth,
+                registrationPoint: { x: 0.5, y: 0, z: 0.5 },
                 localPosition: pos,
                 localRotation: rot,
-                //velocity: this.flightToVelocity(flight),
+                velocity: vel,
             };
         } else {
             return {
             	lifetime: 600,
                 localPosition: pos,
                 localRotation: rot,
-                //velocity: this.flightToVelocity(flight),
+                velocity: vel,
             };
         }
     },
@@ -90,6 +113,8 @@ AUSTIN.Radar.prototype = {
         this.flights[flightId] = newFlight;
         var props = this.getFlightEntityProperties(flightId, flight, true);
         newFlight.entity = Entities.addEntity(props);
+        //var properties = Entities.getEntityProperties(newFlight.entity);
+        //console.log(JSON.stringify(properties));
     },
     
     updateFlight: function(flightId, flight) {
@@ -141,6 +166,20 @@ AUSTIN.Radar.prototype = {
     },
     
     update: function(updateData) {
+        var updateFlightIds = Object.keys(updateData);
+        
+        if (!this.epochOffset) {
+            var updated = 0;
+            for (var i = 0; i < updateFlightIds.length; ++i) {
+                var flightId = updateFlightIds[i];
+                var flight = updateData[flightId];
+                updated = Math.max(flight[UPDATED], updated);
+            }
+            console.log("Most recently updated is " + updated);
+            this.epochOffset = (new Date().getTime() / 1000) - updated;
+            console.log("Offset is " + this.epochOffset);            
+        }
+        
         var that = this;
         this.trim(updateData);
         var updateFlightIds = Object.keys(updateData);
@@ -157,40 +196,17 @@ AUSTIN.Radar.prototype = {
     
     updateRaw: function() {
         var that = this;
+        
         FlightRadar.requestFlightsData(LOCATION.z, LOCATION.x, RANGE, RANGE, function(results){
             FlightRadar.IGNORED_KEYS.forEach(function(key){ delete results[key]; }, this);
             that.update(results);
         });
     },
-    
-    flightToPosition: function(flightData) {
-        var alt = flightData[ALTITUDE];
-        var lat = flightData[LATITUDE];
-        var lon = flightData[LONGITUDE];
-        // Returns the position relative to the earth sphere, and uses parenting to
-        // get the appropriate 
-        return this.geoMapper.relativePositionToVec3(lat, lon, alt);
-    },
-    
-    flightToRotation: function(flight) {
-        var lat = flight[LATITUDE];
-        var lon = flight[LONGITUDE];
-        var bearing = flight[HEADING];
-        return this.geoMapper.bearingToQuat(lat, lon, bearing);    
-    },
-
-    flightToVelocity: function(flightData) {
-        var orientation = FlightRadar.flightToRotation(flightData);
-        var speed = flightData[SPEED];
-        var result = Vec3.multiplyQbyV(orientation, {x: 0, y: 0, z: speed });
-        result = Vec3.multiply(result, 1 / 10000);
-        return result;
-    },
 };
 
 var radar = new AUSTIN.Radar();
 radar.updateRaw();
-//AUSTIN.updateEvery(30, function(){
-//    radar.updateRaw();
-//})
+AUSTIN.updateEvery(5, function(){
+    radar.updateRaw();
+})
 

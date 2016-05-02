@@ -76,5 +76,7 @@ FlightRadar.requestFlightDetails = function(flightId, callback) {
 FlightRadar.flightToSI = function(flight) {
     flight[ALTITUDE] = Math.feetToMeters(flight[ALTITUDE]);
     flight[SPEED] = Math.knotsToMetersPerSecond(flight[SPEED]);
+    // Feet per minute to meters per second
+    flight[VERTICAL_SPEED] = Math.feetToMeters(flight[VERTICAL_SPEED]) / 60;
     return flight;
 }
