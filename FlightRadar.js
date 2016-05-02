@@ -1,18 +1,5 @@
 "use strict";
 
-// 46.5, 48.5   210 km
-// 121, 124     230 km
-// map is 353 km high 353230 /
-
-
-knotsToMetersPerSecond = function(knots) {
-    return knots * 0.514444;
-}
-
-feetToMeters = function(ft) {
-    return ft * 0.3048;
-}
-
 function queryUrl(url, callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
@@ -28,9 +15,6 @@ function queryUrl(url, callback) {
     xhr.send('');
 }
 
-KM_SCALE = 1 / 10
-SCALE = 1 / 10000
-VERTICAL_SCALE = 5
 
 FLIGHT_NUMBER = 0
 LATITUDE = 1
@@ -73,13 +57,7 @@ LONG_FLIGHT_NUMBER = 16
 
 FlightRadar = {};
 
-FlightRadar.VERTICAL_SCALE = 1 / 5000
-FlightRadar.flightToRotation = function(flightData) {
-    var bearing = flightData[HEADING];
-    var pitch = 0; //45 * flightData[VERTICAL_SPEED] / 2000; 
-    return Quat.fromPitchYawRollDegrees(-pitch, bearing, 0);
-}
-
+FlightRadar.IGNORED_KEYS = ['version', 'stats', 'selected-aircraft', 'full_count' ];
 
 FlightRadar.requestFlightsData = function(lat, lon, latRange, lonRange, callback) {
     var minLat = lat - latRange
@@ -87,12 +65,16 @@ FlightRadar.requestFlightsData = function(lat, lon, latRange, lonRange, callback
     var minLon = lon - lonRange
     var maxLon = lon + lonRange
     var url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=" + maxLat + "," + minLat + "," + minLon + "," + maxLon + "&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
-    //url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=49.45,45.45,-124.3,-120.3&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=7200&gliders=1&stats=1&ems=1";
-    print("URL " + url)
     queryUrl(url, callback);
 }
 
 FlightRadar.requestFlightDetails = function(flightId, callback) {
     var url = "https://data-live.flightradar24.com/clickhandler/?version=1.5&flight=" + flightId;
     queryUrl(url, callback);
+}
+
+FlightRadar.flightToSI = function(flight) {
+    flight[ALTITUDE] = Math.feetToMeters(flight[ALTITUDE]);
+    flight[SPEED] = Math.knotsToMetersPerSecond(flight[SPEED]);
+    return flight;
 }

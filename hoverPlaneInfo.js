@@ -3,22 +3,8 @@
 Script.include("./Austin.js");
 Script.include("./FlightRadar.js");
 Script.include("./Geo.js");
+Script.include("./FlightConstants.js")
 
-function feetToMeters(ft) {
-    return ft * 0.3048;
-}
-
-console = {
-  log: function(str) {
-      print("FLIGHT " + str);
-  },
-  warn: function(str) {
-      print("FLIGHT " + str);
-  },
-  debug: function(str) {
-      print("FLIGHT " + str);
-  },
-};
 
 var orientation = MyAvatar.orientation;
 orientation = Quat.safeEulerAngles(orientation);

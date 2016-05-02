@@ -1,5 +1,6 @@
 "use strict";
 
+Script.include("./Austin.js");
 
 //Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -11,11 +12,30 @@ Math.degrees = function(radians) {
   return radians * 180 / Math.PI;
 };
 
+Math.feetToMeters = function(ft) {
+    return ft * 0.3048;
+}
+
+Math.knotsToMetersPerSecond = function(knots) {
+    return knots * 0.514444;
+}
+
+console = {
+  log: function(str) {
+      print(str);
+  },
+  warn: function(str) {
+      print(str);
+  },
+  debug: function(str) {
+      print(str);
+  },
+};
+
 
 Script.include("./Easings.js");
 
 AUSTIN = {}
-
 
 AUSTIN.findNearbyEntities = function(range, predicate) {
     if (!range) {
@@ -59,6 +79,11 @@ AUSTIN.randomPosition = function (center, radius) {
         y: center.x + (Math.random() * radius * 2.0) - radius,
         z: center.z + (Math.random() * radius * 2.0) - radius
     };
+}
+
+AUSTIN.vec3toStr = function(v, digits) {
+    if (!digits) { digits = 3; }
+    return "{ " + v.x.toFixed(digits) + ", " + v.y.toFixed(digits) + ", " + v.z.toFixed(digits)+ " }";
 }
 
 AUSTIN.randomRotation = function() {

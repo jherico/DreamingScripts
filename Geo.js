@@ -13,7 +13,7 @@ GEO.a2minusb2 = GEO.a2 - GEO.b2
 GEO.e = Math.sqrt(GEO.a2minusb2 / GEO.a2)
 GEO.e2 = GEO.e * GEO.e
 GEO.eprime = Math.sqrt(GEO.a2minusb2 / GEO.b2)
-GEO.EARTH_RADIUS = 6.371e6
+GEO.EARTH_RADIUS = GEO.a
 
 GEO.LLA2ECEF = function(lat, lon, alt) {
     var cosLat = Math.cos(lat);
@@ -29,8 +29,8 @@ GEO.LLA2ECEF = function(lat, lon, alt) {
     // results:
     return {
         x : (N + alt) * cosLat * cosLon,
-        y : (GEO.b2overa2 * N + alt) * -sinLat,
-        z : (N + alt) * cosLat * sinLon,
+        y : (GEO.b2overa2 * N + alt) * sinLat,
+        z : (N + alt) * cosLat * -sinLon,
     };
 }
 
@@ -39,38 +39,33 @@ GEO.Mapper = function(properties) {
     this.lon = properties.lon || 0.1821
     this.scale = properties.scale || (1 / 10000)
     this.center = GEO.LLA2ECEF(Math.radians(this.lat), Math.radians(this.lon), 0);
-    var q = Quat.fromPitchYawRollDegrees(0, -this.lon - 90, 0); 
-    q = Quat.multiply(Quat.fromPitchYawRollDegrees(-this.lat, 0, 0), q);
-    this.rotation = q; 
+    var q = { x: 0, y: 0, z: 0, w: 1 };
+    q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -this.lon - 90, 0), q); 
+    q = Quat.multiply(Quat.fromPitchYawRollDegrees(this.lat - 90, 0, 0), q);
+    this.rotation = q;
     this.rotatedCenter = { x: 0, y: -this.scale * GEO.EARTH_RADIUS, z: 0 }; //Vec3.multiplyQbyV(this.rotation, this.center);
     return this;
 }
 
 GEO.Mapper.prototype = {
-    toVec3 : function(lat, lon, alt) {
+    relativePositionToVec3: function(lat, lon, alt) {
         lat = Math.radians(lat);
         lon = Math.radians(lon);
         var result = GEO.LLA2ECEF(lat, lon, alt);
-        result = Vec3.multiplyQbyV(this.rotation, result);
-        result = Vec3.subtract(result, this.rotatedCenter);
         result = Vec3.multiply(result, this.scale);
         return result;
     },
 
     positionToVec3 : function(lat, lon, alt) {
-        return this.toVec3(lat, lon, alt);
+        var result = this.relativePositionToVec3(lat, lon, alt);
+        return result;
     },
     
     bearingToQuat : function(lat, lon, bearing) {
-        var q;
-        q = {
-            x : 0,
-            y : 0,
-            z : 0,
-            w : 1
-        };
-        var q = Quat.fromPitchYawRollDegrees(0, -lon - 90, 0); 
-        q = Quat.multiply(Quat.fromPitchYawRollDegrees(-lat, 0, 0), q);
+        var q = { x: 0, y: 0, z: 0, w: 1 };
+        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -bearing, 0), q); 
+        q = Quat.multiply(Quat.fromPitchYawRollDegrees(lat - 90, 0, 0), q);
+        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, lon - 90, 0), q); 
         return q;
     },
 }
