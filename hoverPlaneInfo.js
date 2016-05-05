@@ -20,6 +20,7 @@ var overlayLine = null;
 var TIME_TILL_HIDE = 100;
 Script.scriptEnding.connect(cleanup);
 var intersectedWithPlane = null;
+var intersectedData = null;
 var intersectionPos = { x: 0, y: 0, z: 0 };
 var textMargin = .05;
 var textWidth = 1;
@@ -82,6 +83,9 @@ function findClosestPlane() {
 
 function castRay() {
     var intersection = findClosestPlane();
+    if (!intersection) {
+        return;
+    }
     if (intersection.id != intersectedWithPlane) {
         // move text up
         intersectedWithPlane = intersection.id;
@@ -91,38 +95,42 @@ function castRay() {
             y: intersection.dimensions.y * 2,
             z: 0
         });
-        showPlaneInfo(position, JSON.parse(intersection.userData));
+        intersectedData = JSON.parse(intersection.userData);
+        showPlaneInfo(position, intersectedData);
     }
 }
 
 
-
-var SEA = { x: -122.3088, y: 0, z: 47.4502 };
-var LAX = { x: -118.4139235, y: 0, z: 33.9411931 };
-var EQU = { x: -78.4560849, y: 0, z: 0.0005385 };
-var GRW = { x: 0, y: 0, z: 0 };
-var LOCATION = SEA;
 GEO_MAPPER = new GEO.Mapper({
-    //lat: LOCATION.z,
-    //lon: LOCATION.x,
-    scale: 1 / 200000,   
+    lat: LOCATION.z,
+    lon: LOCATION.x,
+    scale: SCALE,   
 });
 
 
 var OVERLAYS = [];
+
+function toGlobalPosition(v) {
+    v = Vec3.multiplyQbyV(GEO_MAPPER.rotation, v);
+    v = Vec3.sum(GEO_MAPPER.rotatedCenter, v);
+    return v;
+}
 
 function parseTrackResults(results) {
     OVERLAYS.forEach(function(overlay){
         overlay.destroy();
     }, this);
     OVERLAYS = [];
-    if (results.trail && results.trail.length > 1) {
-        console.log("Trail found ");
+    //console.log("Current intersection plane " + intersectedData.flight.id);
+    //console.log("Result intersection plane " + results.identification.id);
+    if (results.identification && results.identification.id === intersectedData.flight.id && results.trail && results.trail.length > 1) {
+        console.log("Trail found " + results.trail.length);
         var lastPos = intersectionPos;
         for (var i = 0; i < results.trail.length; ++i) {
             var t = results.trail[i];
-            var newPos = GEO_MAPPER.positionToVec3(t.lat, t.lng, feetToMeters(t.alt));
-            if (i !== 0) {
+            var newPos = GEO_MAPPER.positionToVec3(t.lat, t.lng, Math.feetToMeters(t.alt));
+            newPos = toGlobalPosition(newPos);
+            if (true) {
                 OVERLAYS.push(new AUSTIN.Overlay("line3d", {
                     start: lastPos,
                     end: newPos,
@@ -135,16 +143,17 @@ function parseTrackResults(results) {
             lastPos = newPos;
         }
     }
-    
 }
 
 function updateTrack(flight) {
     var flightId = flight.id;
     var url = "https://data-live.flightradar24.com/clickhandler/?version=1.5&flight=" + flightId;
+    console.log("URL " + url);
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
             if (xhr.status === 200) {
+                console.log("Result " + xhr.responseText)
                 parseTrackResults(JSON.parse(xhr.responseText));
             } else {
                 console.warn("Status result " + xhr.status)

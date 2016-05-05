@@ -328,3 +328,29 @@ AUSTIN.Overlay.prototype = {
         return true;
     }
 };
+
+
+AUSTIN.Updater = function(interval, callback) {
+    this.interval = interval;
+    this.callback = callback;
+
+    var accumulator = 0;
+    var that = this;
+    var privateUpdate = function(delta) {
+        accumulator += delta;
+        if (accumulator >= that.interval) {
+            that.callback(accumulator);
+            accumulator = 0;
+        }
+    };
+    this.start = function() { Script.update.connect(privateUpdate); }
+    this.stop = function() { Script.update.disconnect(privateUpdate); }
+    return this;
+}
+
+AUSTIN.Updater.prototype = {
+    constructor: AUSTIN.Updater,
+    setInterval: function(interval) {
+        this.interval = interval;
+    },
+}

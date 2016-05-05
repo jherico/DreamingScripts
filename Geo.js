@@ -14,23 +14,34 @@ GEO.e = Math.sqrt(GEO.a2minusb2 / GEO.a2)
 GEO.e2 = GEO.e * GEO.e
 GEO.eprime = Math.sqrt(GEO.a2minusb2 / GEO.b2)
 GEO.EARTH_RADIUS = GEO.a
+GEO.PI = 3.14159265359
+GEO.PI_OVER_2 = GEO.PI / 2
+GEO.PI_OVER_4 = GEO.PI / 4
+
+GEO.WGS84 = false;
 
 GEO.LLA2ECEF = function(lat, lon, alt) {
     var cosLat = Math.cos(lat);
     var cosLon = Math.cos(lon);
     var sinLat = Math.sin(lat);
     var sinLon = Math.sin(lon);
+    
+    
+    if (!GEO.WGS84) {
+        return {
+            x: (GEO.EARTH_RADIUS + alt) * cosLat * sinLon * -1,
+            y: (GEO.EARTH_RADIUS + alt) * sinLat,
+            z: (GEO.EARTH_RADIUS + alt) * cosLat * cosLon * -1,
+        }
+    }
+
+    // intermediate calculation (prime vertical radius of curvature)
     var sin2Lat = sinLat * sinLat;
-
-    // intermediate calculation
-    // (prime vertical radius of curvature)
     var N = GEO.a / Math.sqrt(1 - (GEO.e2 * sin2Lat));
-
-    // results:
     return {
-        x : (N + alt) * cosLat * cosLon,
+        x : (N + alt) * cosLat * sinLon,
         y : (GEO.b2overa2 * N + alt) * sinLat,
-        z : (N + alt) * cosLat * -sinLon,
+        z : (N + alt) * cosLat * cosLon,
     };
 }
 
@@ -39,11 +50,10 @@ GEO.Mapper = function(properties) {
     this.lon = properties.lon || 0.1821
     this.scale = properties.scale || (1 / 10000)
     this.center = Vec3.multiply(GEO.LLA2ECEF(Math.radians(this.lat), Math.radians(this.lon), 0), this.scale);
-    var q = { x: 0, y: 0, z: 0, w: 1 };
-    q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -this.lon - 90, 0), q); 
-    q = Quat.multiply(Quat.fromPitchYawRollDegrees(this.lat - 90, 0, 0), q);
+    console.log("Center " + AUSTIN.vec3toStr(this.center))
+    var q = Quat.fromPitchYawRollDegrees(0, 180 - this.lon, 0);
+    q = Quat.multiply(Quat.fromPitchYawRollDegrees((90 - this.lat) * -1, 0, 0), q);
     this.rotation = q;
-    //this.rotatedCenter = { x: 0, y: -this.scale * GEO.EARTH_RADIUS, z: 0 }; //Vec3.multiplyQbyV(this.rotation, this.center);
     this.rotatedCenter = Vec3.multiply(Vec3.multiplyQbyV(this.rotation, this.center), -1);
     console.log("rotated center " + AUSTIN.vec3toStr(this.rotatedCenter));
     return this;
@@ -70,15 +80,8 @@ GEO.Mapper.prototype = {
 
     bearingToQuat : function(lat, lon, bearing) {
         var q = { x: 0, y: 0, z: 0, w: 1 };
-        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -bearing, 0), q); 
-        q = Quat.multiply(Quat.fromPitchYawRollDegrees(lat - 90, 0, 0), q);
-        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, lon - 90, 0), q); 
-        return q;
-    },
-
-    bearingToRelativeQuat : function(lat, lon, bearing) {
-        var q = { x: 0, y: 0, z: 0, w: 1 };
-        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -bearing, 0), q); 
+        q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -bearing, 0), q);
+        q = Quat.multiply(Quat.inverse(this.rotation), q);
         return q;
     },
 }

@@ -15,6 +15,21 @@ Math.log2 = Math.log2 || function(x) {
   return Math.log(x) / Math.LN2;
 };
 
+
+
+function intersectRayXyPlane(origin, direction) {
+    var normal = { x: 0, y: 1, z: 0 };
+    var denom = Vec3.dot(normal, direction)
+    console.log("denom " + denom);
+    var dot = Vec3.dot(normal, origin);
+    console.log("dot " + dot);
+    var t = -dot / denom
+    console.log("Distance " + t);
+    var l = Vec3.multiply(direction, t);
+    var result = Vec3.sum(origin, l);
+    return result;
+}
+
 Google.Map = function(properties) {
     this.lat = properties.lat;
     this.lon = properties.lon;
@@ -28,28 +43,30 @@ Google.Map = function(properties) {
     this.actualRange = 360 / this.zoomDivisor;
     this.geoMapper = properties.geoMapper;
     
-    var minLon = this.lat - (this.actualRange * this.latitudeMod);
-    var minLat = this.lon - this.actualRange;
-    console.log("AAAAA minLon " + minLon + " minLat " + minLat);
+    print("this.latitudeMod" + this.latitudeMod);
     var centerPos = this.geoMapper.positionToRelativeVec3(this.lat, this.lon, 0);
-    console.log("AAAAA " + AUSTIN.vec3toStr(centerPos));
-    var minPos = this.geoMapper.positionToRelativeVec3(minLat, minLon, 0);
-    console.log("AAAAA " + AUSTIN.vec3toStr(minPos));
+
+    var minLon = this.lon - this.actualRange;
+    minLon = this.geoMapper.positionToRelativeVec3(this.lat, minLon, 0);
+    minLon = Vec3.normalize(Vec3.subtract(minLon, this.geoMapper.rotatedCenter));
+    minLon = intersectRayXyPlane(this.geoMapper.rotatedCenter, minLon);
+    var minLat = this.lat + this.actualRange * this.latitudeMod;
+    minLat = this.geoMapper.positionToRelativeVec3(minLat, this.lon, 0);
+    minLat = Vec3.normalize(Vec3.subtract(minLat, this.geoMapper.rotatedCenter));
+    minLat = intersectRayXyPlane(this.geoMapper.rotatedCenter, minLat);
     
+    
+    console.log("AAAAA " + AUSTIN.vec3toStr(centerPos));
+    console.log("AAAAA " + AUSTIN.vec3toStr(minLat));
+    console.log("AAAAA " + AUSTIN.vec3toStr(minLon));
+    
+    // Epic fail, replace with proper code for intersection with the xz axis
+    this.xSize = Math.abs(minLon.x) * 2.0;
+    this.zSize = Math.abs(minLat.z) * 2.0;
     this.size = properties.size || 2;
     this.res = properties.resolution || this.size * 256;
     this.destroyWithScript = true;
     this.center = properties.center || { x: -118.4139235, y: 0, z: 33.9411931 }; 
-    this.interval = { 
-        x: Google.DEGREES_PER_PIXEL * this.res * -1 / this.zoomDivisor, 
-        y: 0, 
-        z: Google.DEGREES_PER_PIXEL * this.res * this.latitudeMod / this.zoomDivisor, 
-    };
-    this.inverseInterval = {
-       x: 1 / this.interval.x,
-       y: 0,
-       z: 1 / this.interval.z,
-    }
 
     var that = this;
     Script.scriptEnding.connect(function(){
@@ -81,32 +98,15 @@ Google.Map.prototype = {
         });
     }, 
     
-    positionToLatLong: function(v) {
-        var result = Vec3.multiply(v, 1 / this.size);
-        result = Vec3.multiplyVbyV(this.interval, result);
-        result = Vec3.sum(this.center, result);
-        return result;
-    },
-    
-    
-    latLongToPosition: function(v) {
-        var result = Vec3.subtract(v, this.center);
-        result = Vec3.multiplyVbyV(this.inverseInterval, result);
-        result = Vec3.multiply(result, this.size);
-        return result;
-    },
-    
     buildMap: function() {
-        var position = { x: 0, y: 0, z: 0 };
-        var latLong = this.positionToLatLong(position);
-        var url = Google.Maps.URL + "?center=" + latLong.z + "," + latLong.x + "&zoom=" + this.zoomLevel + "&size=" + this.res + "x" + this.res + "&scale=2&maptype=roadmap&style=feature:poi|element:labels|visibility:off&style=feature:road.arterial|element:labels|visibility:off&key=" + Google.Maps.KEY;
+        var url = Google.Maps.URL + "?center=" + this.lat + "," + this.lon + "&zoom=" + this.zoomLevel + "&size=" + this.res + "x" + this.res + "&scale=2&maptype=roadmap&style=feature:poi|element:labels|visibility:off&style=feature:road.arterial|element:labels|visibility:off&key=" + Google.Maps.KEY;
         console.log("URL " + url);
         var entity = Entities.addEntity({
             type: "Box",
             name: Google.Map.ENTITY_NAME,
             visible: true,
-            position: position,
-            dimensions: { x: this.size, y: 0.001, z: this.size },
+            position: { x: this.geoMapper.rotatedCenter.x, y: 0, z: this.geoMapper.rotatedCenter.z },
+            dimensions: { x: this.xSize, y: 0.001, z: this.zSize },
             userData: JSON.stringify({ ProceduralEntity: {
                 version: 2,
                 shaderUrl: "https://s3.amazonaws.com/DreamingContent/shaders/simpleImage.fs",

@@ -263,7 +263,7 @@ wipe();
 //build();
 //review();
 //rotate();
-//layout();
+layout();
 
 // removeDupes();
 // fixupDimensions();

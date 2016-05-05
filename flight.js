@@ -5,6 +5,45 @@ Script.include("./FlightRadar.js");
 Script.include("./Geo.js");
 Script.include("./FlightConstants.js")
 Script.include("./GoogleMaps.js");
+Script.include("../assets/simple/models.js")
+
+
+FLIGHT_MODELS = {
+    lear_big: [
+        "SimpleAirport/Models/jet01.fbx",
+        "SimpleAirport/Models/jet02.fbx",
+        "SimpleAirport/Models/jet03.fbx",
+    ],
+    lear_small: [
+        "SimpleAirport/Models/jet04.fbx",
+        "SimpleAirport/Models/jet05.fbx",
+    ],
+    cessna: [
+        "SimpleAirport/Models/small_plane01.fbx",
+        "SimpleAirport/Models/small_plane03.fbx",
+        "SimpleAirport/Models/small_plane04.fbx",
+    ],
+    prop: [
+        "SimpleAirport/Models/plane_propellor01.fbx"
+    ],
+    boeing: [
+        "SimpleAirport/Models/plane01.fbx",
+        "SimpleAirport/Models/plane02.fbx",
+        "SimpleAirport/Models/plane03.fbx",
+    ],
+    helo: [
+        
+    ],
+    unknown: [ "SimpleAirport/Models/small_plane02.fbx" ],
+    
+}
+
+FLIGHT_MODEL_MAPS = {
+    lear_small: [ "CL", "C2", "GLF" ],
+    cessna: [ "DV", "C1" ],
+    boeing: [ "B73", "A3" ],
+    helo: ["R" ]
+}
 
 
 AUSTIN.Radar = function() {
@@ -25,15 +64,36 @@ AUSTIN.Radar = function() {
         geoMapper: this.geoMapper,
     });
     this.map.wipe();
-    this.map.buildMap();
-
     this.wipe(true);
-    //this.earth = Entities.addEntity(EARTH_PROPERTIES);
-    //Entities.editEntity(this.earth, {
-    //    position: this.geoMapper.rotatedCenter,
-    //    rotation: this.geoMapper.rotation,
-    //    name: EARTH_ENTITY_NAME,
-    //});
+    this.earth = Entities.addEntity(EARTH_PROPERTIES);
+    
+    Entities.editEntity(this.earth, {
+        name: EARTH_ENTITY_NAME,
+    });
+
+
+    var pos = this.geoMapper.positionToVec3(this.lat, this.lon, 0);
+    console.log("Sphere pos " + AUSTIN.vec3toStr(pos));
+    Entities.addEntity({
+        type: "Sphere",
+        localPosition: pos,
+        dimensions: { x: MARKER_SIZE, y: MARKER_SIZE, z: MARKER_SIZE },
+        color: { red: 255, green: 0, blue: 0 },
+        ignoreCollisions: true,
+        dynamic: false,
+        parentID: this.earth,
+        name: EARTH_ENTITY_NAME,
+    });
+    
+    var that = this;
+    this.rotator = new AUSTIN.Updater(0.05, function(delta){
+        that.updateEarth(delta);
+    });
+    this.scanner = new AUSTIN.Updater(2, function(delta){
+        that.updatePlanesRaw(delta);
+    });
+
+    this.animate(this.geoMapper.rotation);
     return this;
 }
 
@@ -54,6 +114,50 @@ AUSTIN.Radar.prototype = {
         });
     },
     
+    updateEarth: function(deltaTime) {
+        if (this.animation) {
+            if (this.animation.expired()) {
+                this.rotator.stop();
+                if (RANGE <= 1) {
+                    this.map.buildMap();
+                }
+                this.updatePlanesRaw();
+                this.scanner.start();
+                Entities.editEntity(this.earth, {
+                    dimensions: { x: SCALED_DIAMETER, y: SCALED_DIAMETER, z: SCALED_DIAMETER },
+                    position: this.geoMapper.rotatedCenter,
+                    rotation: this.geoMapper.rotation,
+                });
+            } else if (this.animation.ready()) {
+                var alpha = this.animation.easingValue();
+                var pos = Vec3.mix(EARTH_PROPERTIES.position, this.geoMapper.rotatedCenter, alpha);
+                console.log("Easing Value " + alpha);
+                var rot = this.animation.interpolatedValue();
+                var dimension = ((SCALED_DIAMETER - INITIAL_SCALED_DIAMETER) * alpha) + INITIAL_SCALED_DIAMETER;
+                
+                Entities.editEntity(this.earth, {
+                    dimensions: { x: dimension, y: dimension, z: dimension },
+                    position: pos,
+                    rotation: rot,
+                    name: EARTH_ENTITY_NAME,
+                });
+            }
+        }
+    },
+
+    animate: function(rot) {
+        this.wipe(false);
+        this.animation = new AUSTIN.Easing({
+            type: 'easeInOutQuad',
+            duration: 6.0,
+            begin: { x: 0, y: 0, z: 0, w: 1 },
+            end: rot,
+            interpolate: Quat.slerp,
+        });
+        this.rotator.start();
+    },
+
+    
     getFlightEntityProperties: function(flightId, flight, isNewFlight) {
         var alt = flight[ALTITUDE];
         var lat = flight[LATITUDE];
@@ -66,11 +170,10 @@ AUSTIN.Radar.prototype = {
         var now = (new Date().getTime() / 1000) + this.epochOffset;
         // age in seconds
         var age = now - updated;
-        var rot = this.geoMapper.bearingToRelativeQuat(lat, lon, bearing + 180);
+        var rot = this.geoMapper.bearingToQuat(lat, lon, bearing + 180);
         var vel = Vec3.multiplyQbyV(rot, {x: 0, y: vertical_speed, z: speed });
         var posOffset = Vec3.multiply(vel, age);
-        //console.log("Speed " + AUSTIN.vec3toStr(vel) + " offset " + this.epochOffset + " age " + age + " position offset " + AUSTIN.vec3toStr(posOffset));
-        var pos = this.geoMapper.positionToRelativeVec3(lat, lon, alt);
+        var pos = this.geoMapper.positionToVec3(lat, lon, alt);
         pos = Vec3.sum(pos, posOffset);
         
 
@@ -89,6 +192,7 @@ AUSTIN.Radar.prototype = {
                         data: flight,
                     }
                 }),
+                parentID: this.earth,
                 registrationPoint: { x: 0.5, y: 0, z: 0.5 },
                 localPosition: pos,
                 localRotation: rot,
@@ -135,7 +239,7 @@ AUSTIN.Radar.prototype = {
             return;
         }
 
-        console.log("Removed " + flightId);
+        //console.log("Removed " + flightId);
         var deadFlight = this.flights[flightId];
         Entities.deleteEntity(deadFlight.entity);
         delete this.flights[flightId];
@@ -165,19 +269,21 @@ AUSTIN.Radar.prototype = {
         }, this);
     },
     
-    update: function(updateData) {
+    updatePlanes: function(updateData) {
         var updateFlightIds = Object.keys(updateData);
-        
-        if (!this.epochOffset) {
-            var updated = 0;
-            for (var i = 0; i < updateFlightIds.length; ++i) {
-                var flightId = updateFlightIds[i];
-                var flight = updateData[flightId];
-                updated = Math.max(flight[UPDATED], updated);
-            }
-            console.log("Most recently updated is " + updated);
-            this.epochOffset = (new Date().getTime() / 1000) - updated;
-            console.log("Offset is " + this.epochOffset);            
+
+        var latestUpdated = 0;
+        for (var i = 0; i < updateFlightIds.length; ++i) {
+            var flightId = updateFlightIds[i];
+            var flight = updateData[flightId];
+            latestUpdated = Math.max(flight[UPDATED], latestUpdated);
+        }
+        this.latestUpdated = latestUpdated;
+        var now = (new Date().getTime() / 1000);
+        var delta = now - latestUpdated;
+        if ((!this.epochOffset) || (delta < this.epochOffset)) {
+            this.epochOffset = delta;
+            console.log("New offset is " + this.epochOffset);
         }
         
         var that = this;
@@ -194,19 +300,18 @@ AUSTIN.Radar.prototype = {
         }
     },
     
-    updateRaw: function() {
+    updatePlanesRaw: function() {
         var that = this;
-        
-        FlightRadar.requestFlightsData(LOCATION.z, LOCATION.x, RANGE, RANGE, function(results){
+        FlightRadar.requestFlightsData(this.lat, this.lon, RANGE, RANGE, function(results){
             FlightRadar.IGNORED_KEYS.forEach(function(key){ delete results[key]; }, this);
-            that.update(results);
+            that.updatePlanes(results);
         });
     },
 };
 
 var radar = new AUSTIN.Radar();
-radar.updateRaw();
-AUSTIN.updateEvery(5, function(){
-    radar.updateRaw();
-})
+//radar.updateRaw();
+//AUSTIN.updateEvery(2, function(){
+//    radar.updateRaw();
+//})
 
