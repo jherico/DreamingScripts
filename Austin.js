@@ -1,16 +1,19 @@
 "use strict";
 
-Script.include("./Austin.js");
 
-//Converts from degrees to radians.
+// Converts from degrees to radians.
 Math.radians = function(degrees) {
-  return degrees * Math.PI / 180;
-};
+    return degrees * Math.PI / 180;
+}
 
-//Converts from radians to degrees.
+// Converts from radians to degrees.
 Math.degrees = function(radians) {
-  return radians * 180 / Math.PI;
-};
+    return radians * 180 / Math.PI;
+}
+
+Math.log2 = Math.log2 || function(x) {
+    return Math.log(x) / Math.LN2;
+}
 
 Math.feetToMeters = function(ft) {
     return ft * 0.3048;
@@ -20,22 +23,32 @@ Math.knotsToMetersPerSecond = function(knots) {
     return knots * 0.514444;
 }
 
-console = {
-  log: function(str) {
-      print(str);
-  },
-  warn: function(str) {
-      print(str);
-  },
-  debug: function(str) {
-      print(str);
-  },
-};
-
+if (typeof(console) == "undefined") {
+    console = {
+        log: function(str) { print(str); },
+        warn: function(str) { print(str); },
+        debug: function(str) { print(str); },
+    };
+}
 
 Script.include("./Easings.js");
 
 AUSTIN = {}
+
+AUSTIN.queryUrl = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                callback(JSON.parse(xhr.responseText));
+            } else {
+                console.warn("Status result " + xhr.status)
+            }
+        }
+    };
+    xhr.open('GET', url, true);
+    xhr.send('');
+}
 
 AUSTIN.findNearbyEntities = function(range, predicate) {
     if (!range) {
@@ -55,11 +68,31 @@ AUSTIN.findNearbyEntities = function(range, predicate) {
 }
 
 AUSTIN.Colors = {
-    TronBlue:  { red: 24, green: 202, blue: 230 },
-    TronRed: { red: 251, green: 0, blue: 9 },
-    TardisBlue: { red: 0, green: 59, blue: 111 },
-    White: { red: 255, green: 255, blue: 255 },
-    OffWhite: { red: 200, green: 200, blue: 200 },
+    TronBlue: {
+        red: 24,
+        green: 202,
+        blue: 230
+    },
+    TronRed: {
+        red: 251,
+        green: 0,
+        blue: 9
+    },
+    TardisBlue: {
+        red: 0,
+        green: 59,
+        blue: 111
+    },
+    White: {
+        red: 255,
+        green: 255,
+        blue: 255
+    },
+    OffWhite: {
+        red: 200,
+        green: 200,
+        blue: 200
+    },
     mix: function(c1, c2, alpha) {
         return {
             red: ((c2.red - c1.red) * alpha) + c1.red,
@@ -69,11 +102,11 @@ AUSTIN.Colors = {
     }
 }
 
-AUSTIN.avatarRelativePosition = function (v) {
+AUSTIN.avatarRelativePosition = function(v) {
     return Vec3.sum(MyAvatar.position, Vec3.multiplyQbyV(MyAvatar.orientation, v));
 }
 
-AUSTIN.randomPosition = function (center, radius) {
+AUSTIN.randomPosition = function(center, radius) {
     return {
         x: center.x + (Math.random() * radius * 2.0) - radius,
         y: center.x + (Math.random() * radius * 2.0) - radius,
@@ -82,18 +115,17 @@ AUSTIN.randomPosition = function (center, radius) {
 }
 
 AUSTIN.vec3toStr = function(v, digits) {
-    if (!digits) { digits = 3; }
-    return "{ " + v.x.toFixed(digits) + ", " + v.y.toFixed(digits) + ", " + v.z.toFixed(digits)+ " }";
+    if (!digits) {
+        digits = 3;
+    }
+    return "{ " + v.x.toFixed(digits) + ", " + v.y.toFixed(digits) + ", " + v.z.toFixed(digits) + " }";
 }
 
 AUSTIN.randomRotation = function() {
-    return Quat.fromPitchYawRollDegrees(
-            Math.random() * 360 - 180,
-            Math.random() * 360 - 180,
-            Math.random() * 360 - 180);
+    return Quat.fromPitchYawRollDegrees(Math.random() * 360 - 180, Math.random() * 360 - 180, Math.random() * 360 - 180);
 }
 
-AUSTIN.randomDimensions = function () {
+AUSTIN.randomDimensions = function() {
     return {
         x: 0.1 + Math.random() * 0.5,
         y: 0.1 + Math.random() * 0.1,
@@ -101,7 +133,7 @@ AUSTIN.randomDimensions = function () {
     };
 }
 
-AUSTIN.randomPositionXZ = function (center, radius) {
+AUSTIN.randomPositionXZ = function(center, radius) {
     return {
         x: center.x + (Math.random() * radius * 2.0) - radius,
         y: center.y,
@@ -109,9 +141,9 @@ AUSTIN.randomPositionXZ = function (center, radius) {
     };
 }
 
-AUSTIN.randomColor = function () {
+AUSTIN.randomColor = function() {
     var shade = Math.floor(Math.random() * 255);
-    var hue   = Math.floor(Math.random() * (255 - shade));
+    var hue = Math.floor(Math.random() * (255 - shade));
 
     return {
         red: shade + hue,
@@ -120,7 +152,7 @@ AUSTIN.randomColor = function () {
     };
 }
 
-AUSTIN.randomGray = function () {
+AUSTIN.randomGray = function() {
     var shade = Math.floor(Math.random() * 255);
 
     return {
@@ -135,32 +167,34 @@ AUSTIN.now = function() {
 }
 
 /**
- * Create a new constructor function, whose prototype is the parent object's prototype.
- * Set the child's prototype to the newly created constructor function.
- **/
+ * Create a new constructor function, whose prototype is the parent object's
+ * prototype. Set the child's prototype to the newly created constructor
+ * function.
+ */
 AUSTIN.extend = function(childObj, parentObj) {
-    var tmpObj = function () {}
+    var tmpObj = function() {
+    }
     tmpObj.prototype = parentObj.prototype;
     childObj.prototype = new tmpObj();
     childObj.prototype.constructor = childObj;
 };
 
 AUSTIN.createArray = function(length) {
-    var arr = new Array(length || 0),
-        i = length;
+    var arr = new Array(length || 0), i = length;
 
     if (arguments.length > 1) {
         var args = Array.prototype.slice.call(arguments, 1);
-        while(i--) arr[length-1 - i] = AUSTIN.createArray.apply(this, args);
+        while (i--)
+            arr[length - 1 - i] = AUSTIN.createArray.apply(this, args);
     }
     return arr;
 }
 
 AUSTIN.updateEvery = function(interval, callback) {
-    (function(){
+    (function() {
         var thisInterval = interval;
         var thisAccumulator = 0;
-        Script.update.connect(function(delta){
+        Script.update.connect(function(delta) {
             thisAccumulator += delta;
             if (thisAccumulator >= thisInterval) {
                 callback(thisAccumulator);
@@ -190,14 +224,14 @@ AUSTIN.Easing.prototype = {
     easingValue: function() {
         return this.easingFunction(this.age(), 0.0, 1.0, this.duration);
     },
-    
+
     interpolatedValue: function(alpha) {
         if (undefined === alpha) {
             alpha = this.easingValue();
         }
         return this.interpolate(this.begin, this.end, alpha);
     },
-    
+
     age: function() {
         return (AUSTIN.now() - this.startTime) / 1000.0;
     },
@@ -205,7 +239,7 @@ AUSTIN.Easing.prototype = {
     expired: function() {
         return this.age() >= this.duration;
     },
-    
+
     ready: function() {
         return AUSTIN.now() >= this.startTime;
     }
@@ -230,6 +264,7 @@ AUSTIN.Overlay = function(type, properties) {
     if (!properties) {
         properties = type;
         type = properties["type"];
+        properties = JSON.parse(JSON.stringify(properties));
         delete properties["type"];
     }
     this.type = type;
@@ -237,24 +272,27 @@ AUSTIN.Overlay = function(type, properties) {
     this.destroyWithScript = true;
     this.animations = {};
     var that = this;
-    
+
     var privateUpdate = function(delta) {
         if (!that.update(delta)) {
             that.stopUpdates();
         }
     };
 
-    this.startUpdates = function() { Script.update.connect(privateUpdate); }
-    this.stopUpdates = function() { Script.update.disconnect(privateUpdate); }
+    this.startUpdates = function() {
+        Script.update.connect(privateUpdate);
+    }
+    this.stopUpdates = function() {
+        Script.update.disconnect(privateUpdate);
+    }
 
-    Script.scriptEnding.connect(function(){
+    Script.scriptEnding.connect(function() {
         if (that.destroyWithScript) {
             that.destroy();
         }
     });
     return this;
 }
-
 
 AUSTIN.Overlay.prototype = {
     constructor: AUSTIN.Overlay,
@@ -269,11 +307,11 @@ AUSTIN.Overlay.prototype = {
             this.id = 0;
         }
     },
-    
+
     destroyed: function() {
         return 0 === this.id;
     },
-    
+
     animate: function(property, easingProperties) {
         if (0 === Object.keys(this.animations).length) {
             this.startUpdates();
@@ -283,7 +321,7 @@ AUSTIN.Overlay.prototype = {
         }
         this.animations[property].push(new AUSTIN.Easing(easingProperties));
     },
-    
+
     update: function(deltaTime) {
         var keys = Object.keys(this.animations);
         if (!keys.length) {
@@ -293,7 +331,7 @@ AUSTIN.Overlay.prototype = {
         var editProperties = {};
         var completions = [];
         var expiredKeys = [];
-        keys.forEach(function(key){
+        keys.forEach(function(key) {
             var animations = this.animations[key];
             var expiredCount = 0;
             for (var i = 0; i < animations.length; ++i) {
@@ -321,7 +359,9 @@ AUSTIN.Overlay.prototype = {
             }
         }, this);
         this.edit(editProperties);
-        completions.forEach(function(completion){ completion() });
+        completions.forEach(function(completion) {
+            completion()
+        });
         for (var i = 0; i < expiredKeys.length; ++i) {
             delete this.animations[expiredKeys[i]];
         }
@@ -329,22 +369,34 @@ AUSTIN.Overlay.prototype = {
     }
 };
 
-
-AUSTIN.Updater = function(interval, callback) {
+AUSTIN.Updater = function(interval, callback, context) {
     this.interval = interval;
     this.callback = callback;
+    this.context = context;
 
     var accumulator = 0;
     var that = this;
     var privateUpdate = function(delta) {
+        if (!that.running) {
+            return;
+        }
         accumulator += delta;
         if (accumulator >= that.interval) {
             that.callback(accumulator);
             accumulator = 0;
         }
     };
-    this.start = function() { Script.update.connect(privateUpdate); }
-    this.stop = function() { Script.update.disconnect(privateUpdate); }
+
+    Script.update.connect(privateUpdate);
+
+    this.start = function() {
+        that.running = true;
+        accumulator = 0;
+    }
+    this.stop = function() {
+        that.running = false;
+        // Script.update.disconnect(privateUpdate);
+    }
     return this;
 }
 

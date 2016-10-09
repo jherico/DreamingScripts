@@ -6,3 +6,6 @@ var qmlWindow = new OverlayWindow({
 });
 qmlWindow.setPosition(30, 30);
 qmlWindow.setVisible(true);
+qmlWindow.visibleChanged.connect(function(){
+    print("test window visible changed to " + qmlWindow.visible)
+})

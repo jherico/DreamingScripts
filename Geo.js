@@ -26,12 +26,11 @@ GEO.LLA2ECEF = function(lat, lon, alt) {
     var sinLat = Math.sin(lat);
     var sinLon = Math.sin(lon);
     
-    
     if (!GEO.WGS84) {
         return {
-            x: (GEO.EARTH_RADIUS + alt) * cosLat * sinLon * -1,
-            y: (GEO.EARTH_RADIUS + alt) * sinLat,
-            z: (GEO.EARTH_RADIUS + alt) * cosLat * cosLon * -1,
+            x: cosLat * sinLon * -1,
+            y: sinLat,
+            z: cosLat * cosLon * -1,
         }
     }
 
@@ -46,16 +45,14 @@ GEO.LLA2ECEF = function(lat, lon, alt) {
 }
 
 GEO.Mapper = function(properties) {
-    this.lat = properties.lat || 51.1537
-    this.lon = properties.lon || 0.1821
-    this.scale = properties.scale || (1 / 10000)
+    this.lat = properties.lat || 0
+    this.lon = properties.lon || 0
+    this.scale = properties.scale || 1
     this.center = Vec3.multiply(GEO.LLA2ECEF(Math.radians(this.lat), Math.radians(this.lon), 0), this.scale);
-    console.log("Center " + AUSTIN.vec3toStr(this.center))
     var q = Quat.fromPitchYawRollDegrees(0, 180 - this.lon, 0);
     q = Quat.multiply(Quat.fromPitchYawRollDegrees((90 - this.lat) * -1, 0, 0), q);
     this.rotation = q;
     this.rotatedCenter = Vec3.multiply(Vec3.multiplyQbyV(this.rotation, this.center), -1);
-    console.log("rotated center " + AUSTIN.vec3toStr(this.rotatedCenter));
     return this;
 }
 

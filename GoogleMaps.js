@@ -9,13 +9,6 @@ Google = {
 }
 
 
-//var center = { x: -122.3, y: 0, z: 47.45 };
-//var center = { x: -78.4560849, y: 0, z: 0.0005385 };
-Math.log2 = Math.log2 || function(x) {
-  return Math.log(x) / Math.LN2;
-};
-
-
 
 function intersectRayXyPlane(origin, direction) {
     var normal = { x: 0, y: 1, z: 0 };
