@@ -50,6 +50,32 @@ AUSTIN.queryUrl = function(url, callback) {
     xhr.send('');
 }
 
+AUSTIN.queryRaw = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                callback(xhr.responseText);
+            } else {
+                console.warn("Status result " + xhr.status)
+            }
+        }
+    };
+    xhr.open('GET', url, true);
+    xhr.send('');
+}
+
+AUSTIN.queryJson = function(url, callback) {
+	AUSTIN.queryRaw(url, function(response){
+		callback(JSON.parse(response));
+	});
+}
+
+AUSTIN.queryXml = function(url, callback) {
+	AUSTIN.queryRaw(url, function(response){
+	});
+}
+
 AUSTIN.findNearbyEntities = function(range, predicate) {
     if (!range) {
         range = 50;

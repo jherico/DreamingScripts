@@ -79,6 +79,9 @@ AUSTIN.Earth.findExisting = function(position, range) {
 
 
 AUSTIN.Earth.clear = function(position, range) {
+    position = position || Vec3.ZERO;
+    range = range || 50;
+
     AUSTIN.Earth.findExisting(position, range).forEach(function(id) {
         var properties = Entities.getEntityProperties(id);
         if (properties.name === AUSTIN.EarthConstants.ENTITY_NAME) {
