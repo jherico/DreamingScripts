@@ -1,5 +1,5 @@
-var exportName = "heron2";
-var rootExportDir = "c:/users/bdavis/git/dreaming/exports/";
+var exportName = "dreaming";
+var rootExportDir = "c:/users/bdavis/git/dreaming/exports2/";
 
 if (typeof String.prototype.startsWith != 'function') {
     String.prototype.startsWith = function (str){
@@ -8,7 +8,7 @@ if (typeof String.prototype.startsWith != 'function') {
 }
 
 var exportJson = rootExportDir + "/" + exportName + ".json";
-//var exportAtp = rootExportDir + "/" + exportName + ".atp";
+var exportAtp = rootExportDir + "/" + exportName + ".atp";
 //
 //var ids = Entities.findEntities(MyAvatar.position, 1000000);
 //var assetUrls = {};
@@ -38,6 +38,7 @@ var exportJson = rootExportDir + "/" + exportName + ".json";
 //        });
 //    })();
 //}
-Clipboard.exportEntities(exportJson, 120, 8, 175, 10000);
-//Clipboard.exportAtpAssets(exportAtp);
+
+Clipboard.exportEntities(exportJson, 120, 8, 175, 100000);
+Clipboard.exportAtpAssets(exportAtp);
 Script.stop();

@@ -24,9 +24,9 @@ AUSTIN.EarthConstants.PROCEDURAL_PARAMS = {
         shaderUrl: "https://s3.amazonaws.com/DreamingContent/shaders/globeMap.fs",
         channels: [
             AUSTIN.EarthConstants.EARTH_IMAGE,
-            AUSTIN.EarthConstants.NIGHT_IMAGE,
+            AUSTIN.EarthConstants.NIGHT_IMAGE
         ],
-        uniforms: {},
+        uniforms: {}
     }
 }
 
@@ -67,7 +67,14 @@ AUSTIN.Earth.prefetch = function() {
 AUSTIN.Earth.findExisting = function(position, range) {
     position = position || Vec3.ZERO;
     range = range || 50;
-    return Entities.findEntities(position, range);
+    
+    Entities.findEntities(position, range).forEach(function(id) {
+        var properties = Entities.getEntityProperties(id);
+        if (properties.name === AUSTIN.EarthConstants.ENTITY_NAME) {
+            return id;    
+        }
+    });
+    return;
 }
 
 
@@ -100,18 +107,31 @@ AUSTIN.Earth.prototype = {
     build: function() {
         if (!this.id) {
             var existing = AUSTIN.Earth.findExisting();
-            if (existing && existing.length > 0) {
-                this.id = existing[0];
+            if (existing) {
+                this.id = existing;
+                return;
             }
         }
 
         if (this.id) {
+            var properties = Entities.getEntityProperties(this.id);
+            //this.setRadius();
             return;
         }
 
         this.id = Entities.addEntity(AUSTIN.EarthConstants.ENTITY_PROPERTIES);
     },
     
+    find: function() {
+        if (!this.id) {
+            var existing = AUSTIN.Earth.findExisting();
+            if (existing) {
+                this.id = existing;
+                return;
+            }
+        }
+    },
+
     forceBuild: function() {
         this.destroy();
         this.build();
@@ -140,6 +160,7 @@ AUSTIN.Earth.prototype = {
     },
     
     relativePosition: function(lat, lon, alt) {
+        alt = alt || 0;
         var result = GEO.LLA2ECEF(Math.radians(lat), Math.radians(lon), 0);
         var distance = this.radius + (this.scale * alt);
         result = Vec3.multiply(result, distance);
@@ -148,7 +169,6 @@ AUSTIN.Earth.prototype = {
     
     relativeOrientation: function(lat, lon, bearing) {
         var q = { x: 0, y: 0, z: 0, w: 1 };
-        console.log("Lat lon " + lat + " , " + lon);
         var yaw = lon;
         var pitch = lat - 90;
         q = Quat.multiply(Quat.fromPitchYawRollDegrees(0, -bearing, 0), q)
